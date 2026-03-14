@@ -5,7 +5,7 @@ const https = require('https');
 const [DISCORD_EMAIL, DISCORD_PASSWORD] = (process.env.DISCORD_ACCOUNT || ',').split(',');
 const [TG_CHAT_ID, TG_TOKEN] = (process.env.TG_BOT || ',').split(',');
 
-const TIMEOUT = 30000;
+const TIMEOUT = 60000;
 
 function nowStr() {
     return new Date().toLocaleString('zh-CN', {
@@ -191,7 +191,6 @@ test('FreezeHost 自动续期', async () => {
             console.log('🔍 进入 OAuth 授权页，处理中...');
             await page.waitForTimeout(2000);
             await handleOAuthPage(page);
-            // 等待离开 Discord
             await page.waitForURL(/free\.freezehost\.pro/, { timeout: 15000 });
             console.log(`✅ 已离开 Discord，当前：${page.url()}`);
         } catch {
@@ -218,8 +217,8 @@ test('FreezeHost 自动续期', async () => {
 
         // ── 续期 ──────────────────────────────────────────────
         console.log('🔍 查找 Manage 按钮...');
-        const manageBtn = page.locator('a[href*="/server-console"]').first();
-        await manageBtn.waitFor({ state: 'visible' });
+        await page.waitForSelector('a[href*="server-console"]', { state: 'visible', timeout: 30000 });
+        const manageBtn = page.locator('a[href*="server-console"]').first();
         await manageBtn.scrollIntoViewIfNeeded();
         await manageBtn.click();
         console.log('✅ 已点击 Manage');
@@ -230,12 +229,13 @@ test('FreezeHost 自动续期', async () => {
 
         console.log('🔍 查找 RENEW 按钮...');
         const renewBtn = page.locator('a#renew-link').first();
-        await renewBtn.waitFor({ state: 'visible' });
+        await renewBtn.waitFor({ state: 'visible', timeout: 30000 });
         await renewBtn.click();
         console.log('📤 已点击 RENEW，等待结果...');
 
         await page.waitForURL(
             url => url.includes('/dashboard') || url.includes('/server-console'),
+            { timeout: 30000 }
         );
         const finalUrl = page.url();
         console.log(`📄 最终跳转地址：${finalUrl}`);
