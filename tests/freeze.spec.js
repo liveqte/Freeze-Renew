@@ -25,7 +25,7 @@ function sendTG(result) {
         }
 
         const msg = [
-            `🎮 FreezeHost 自动续期战报`,
+            `🎮 FreezeHost 续期报告`,
             `🕐 时间: ${nowStr()}`,
             `========================`,
             `${result}`,
@@ -335,7 +335,7 @@ test('FreezeHost 自动续期', async () => {
                 });
 
                 if (serverUrls.length === 0) {
-                    allSummary.push(`   ❌ 没有找到服务器`);
+                    allSummary.push(`  ❌ 获取服务器列表失败或为空\n`);
                     console.log('⚠️ 未找到任何服务器');
                     continue; 
                 }
@@ -348,37 +348,66 @@ test('FreezeHost 自动续期', async () => {
                     console.log(`\n▶️ 开始处理第 ${i + 1}/${serverUrls.length} 个服务器`);
                     console.log(`  🔗 ${sUrl}`);
                     await page.goto(sUrl, { waitUntil: 'domcontentloaded' });
-                    
                     await page.waitForTimeout(3000);
                     
-                    let serverLabel = `  📦 Node ${i+1}`;
+                    // 1. 尝试抓取具体的服务器名字
+                    const serverName = await page.evaluate(() => {
+                        const h = document.querySelector('h1, h2, h3, .server-name, .font-bold.text-xl');
+                        if (h && h.innerText && h.innerText.length < 30) return h.innerText.trim();
+                        let title = document.title;
+                        title = title.replace(/ - .+$/, '').replace(/Dashboard/i, '').trim();
+                        return title || `Node ${i+1}`;
+                    });
+                    console.log(`  📛 服务器名称: ${serverName}`);
 
+                    // 2. 抓取续期状态文本
                     const renewalStatusText = await page.evaluate(() => {
                         const el = document.getElementById('renewal-status-console');
                         return el ? el.innerText.trim() : null;
                     });
-
-                    console.log(`  📋 续期状态：${renewalStatusText}`);
+                    console.log(`  📋 续期状态原文：${renewalStatusText}`);
 
                     let shouldRenew = true;
+                    let timeDisplay = '未知时效';
+
                     if (renewalStatusText) {
                         const daysMatch = renewalStatusText.match(/(\d+(?:\.\d+)?)\s*day/i);
-                        const remainingDays = daysMatch ? parseFloat(daysMatch[1]) : null;
-
-                        if (remainingDays !== null) {
-                            console.log(`  ⏳ 剩余天数：${remainingDays}`);
-                            if (remainingDays > 7) {
-                                const msg = `剩 ${remainingDays} 天`;
-                                allSummary.push(`${serverLabel}: ⏸️ 无需 (${msg})`);
-                                console.log('  ' + msg);
+                        if (daysMatch) {
+                            const remainingDaysVal = parseFloat(daysMatch[1]);
+                            if (remainingDaysVal.toString().includes('.')) {
+                                const d = Math.floor(remainingDaysVal);
+                                const h = Math.round((remainingDaysVal - d) * 24);
+                                timeDisplay = `${d}天 ${h}小时`;
+                            } else {
+                                timeDisplay = `${remainingDaysVal}天 0小时`;
+                            }
+                            console.log(`  ⏳ 精确时效计算：${timeDisplay}`);
+                            
+                            if (remainingDaysVal > 7) {
+                                console.log(`  🛡️ 剩余 > 7 天，无需续期`);
                                 shouldRenew = false;
                             } else {
-                                console.log(`  ✅ 剩余 ${remainingDays} 天，需要续期，继续操作...`);
+                                console.log(`  ✅ 剩余 <= 7 天，符合条件，准备点击...`);
                             }
                         }
                     }
 
-                    if (!shouldRenew) continue;
+                    // 准备推送排版
+                    let statusEmoji = '🟢';
+                    let statusText = '';
+                    let finalTimeDisplay = timeDisplay;
+
+                    const pushResult = () => {
+                        allSummary.push(` ${statusEmoji} [${serverName}]`);
+                        allSummary.push(`  ├─ 状态: ${statusText}`);
+                        allSummary.push(`  └─ 时效: ${finalTimeDisplay}\n`);
+                    };
+
+                    if (!shouldRenew) {
+                        statusText = `🛡️ 无需续期`;
+                        pushResult();
+                        continue;
+                    }
 
                     // ── 点击外链图标打开续期弹窗 ─────────────────────────
                     console.log('  🔍 查找续期入口...');
@@ -396,8 +425,10 @@ test('FreezeHost 自动续期', async () => {
                         const btnText = (await renewModalBtn.innerText()).trim();
 
                         if (!btnText.toLowerCase().includes('renew instance')) {
-                            allSummary.push(`${serverLabel}: ⏰ 未到时间`);
+                            statusEmoji = '🟡';
+                            statusText = `⏰ 未到续期条件`;
                             console.log('  ⏰ 尚未到续期时间，跳过');
+                            pushResult();
                             continue;
                         }
 
@@ -412,22 +443,29 @@ test('FreezeHost 自动续期', async () => {
                         const finalUrl = page.url();
                         if (finalUrl.includes('success=RENEWED')) {
                             console.log('  🎉 续期成功！');
-                            allSummary.push(`${serverLabel}: ✅ 续期成功`);
+                            statusEmoji = '🟢';
+                            statusText = `✅ 续期成功`;
+                            finalTimeDisplay = `14天 0小时`; // 成功基本就是满血14天
                         } else if (finalUrl.includes('err=CANNOTAFFORDRENEWAL')) {
                             console.log('  ⚠️ 余额不足，无法续期');
-                            allSummary.push(`${serverLabel}: ⚠️ 余额不足`);
+                            statusEmoji = '🔴';
+                            statusText = `⚠️ 余额不足`;
                         } else if (finalUrl.includes('err=TOOEARLY')) {
                             console.log('  ⏰ 尚未到续期时间');
-                            allSummary.push(`${serverLabel}: ⏰ 未到时间`);
+                            statusEmoji = '🟡';
+                            statusText = `⏰ 未到续期限制`;
                         } else {
-                            allSummary.push(`${serverLabel}: ❓ 结果未知`);
                             console.log(`  ⚠️ 续期结果未知：${finalUrl}`);
+                            statusEmoji = '🟡';
+                            statusText = `❓ 结果未知`;
                         }
                     } catch (err) {
                         console.log(`  ❌ 处理此服务器时发生错误: ${err.message}`);
-                        allSummary.push(`${serverLabel}: ❌ 处理失败 (${err.message.slice(0, 30)})`);
+                        statusEmoji = '🔴';
+                        statusText = `❌ 异常 (${err.message.slice(0, 15)})`;
                         globalHasError = true;
                     }
+                    pushResult();
                 } // End Server Loop
             } catch (err) {
                 console.log(`❌ 账号 ${tIndex + 1} 发生异常: ${err.message}`);
