@@ -370,11 +370,11 @@ test('FreezeHost 自动续期', async ({}, testInfo) => {
                     console.log(`\n▶️ 开始处理第 ${i + 1}/${serverUrls.length} 个服务器`);
                     console.log(`  🔗 ${sUrl}`);
                     await page.goto(sUrl, { waitUntil: 'domcontentloaded' });
-                    await page.waitForTimeout(3000);
+                    await page.waitForTimeout(10000);
                     //尝试寻找Start Server 按钮
                     try {
                         console.log('  ☀️ 检查 Start Server 按钮...');
-                        const startBtn = page.locator('#power-btn');  // 使用 id 定位，更精确
+                        const startBtn = page.locator('button:has-text("Start Server")');
                         // 尝试查找按钮 (超时 2000ms)，如果找到则点击
                         if (await startBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
                             console.log('  🖱️ 找到 Start Server 按钮，点击中...');
