@@ -371,7 +371,34 @@ test('FreezeHost 自动续期', async ({}, testInfo) => {
                     console.log(`  🔗 ${sUrl}`);
                     await page.goto(sUrl, { waitUntil: 'domcontentloaded' });
                     await page.waitForTimeout(3000);
-                    
+                    //尝试寻找Start Server 按钮
+                    try {
+                        console.log('  ☀️ 检查 Start Server 按钮...');
+                        const startBtn = page.locator('#power-btn');  // 使用 id 定位，更精确
+                        // 尝试查找按钮 (超时 2000ms)，如果找到则点击
+                        if (await startBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+                            console.log('  🖱️ 找到 Start Server 按钮，点击中...');
+                            await startBtn.click({ force: true });
+                            await page.waitForTimeout(2000); // 等待启动效果
+                            console.log('  ✅ 启动点击完成');
+                        }
+                    } catch (e) {
+                        console.log('  ℹ️ 未发现或无法点击 Start Server (已忽略)');
+                    }
+                    //尝试寻找 Wake Up Server 按钮
+                    try {
+                        console.log('  ☀️ 检查 Wake Up Server 按钮...');
+                        const wakeBtn = page.locator('button:has-text("Wake Up Server")');
+                        // 尝试查找按钮 (超时 2000ms)，如果找到则点击
+                        if (await wakeBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+                            console.log('  🖱️ 找到 Wake Up Server 按钮，点击中...');
+                            await wakeBtn.click({ force: true }); // 使用 force 确保点击
+                            await page.waitForTimeout(2000); // 等待唤醒效果
+                            console.log('  ✅ 唤醒点击完成');
+                        }
+                    } catch (e) {
+                        console.log('  ℹ️ 未发现或无法点击 Wake Up Server (已忽略)');
+                    }
                     // 1. 尝试抓取具体的服务器名字
                     const serverName = await page.evaluate(() => {
                         const h = document.querySelector('h1, h2, h3, .server-name, .font-bold.text-xl');
@@ -473,22 +500,6 @@ test('FreezeHost 自动续期', async ({}, testInfo) => {
 
                         const renewHref = await renewModalBtn.getAttribute('href');
                         if (!renewHref || renewHref === '#') throw new Error('无效的续期链接');
-
-                        // ── 新增：尝试唤醒服务器 ─────────────────────────
-                        // 在获取续期链接并构建 URL 之前，尝试寻找 Wake Up Server 按钮
-                        try {
-                            console.log('  ☀️ 检查 Wake Up Server 按钮...');
-                            const wakeBtn = page.locator('button:has-text("Wake Up Server")');
-                            // 尝试查找按钮 (超时 2000ms)，如果找到则点击
-                            if (await wakeBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-                                console.log('  🖱️ 找到 Wake Up Server 按钮，点击中...');
-                                await wakeBtn.click({ force: true }); // 使用 force 确保点击
-                                await page.waitForTimeout(2000); // 等待唤醒效果
-                                console.log('  ✅ 唤醒点击完成');
-                            }
-                        } catch (e) {
-                            console.log('  ℹ️ 未发现或无法点击 Wake Up Server (已忽略)');
-                        }
 
                         const renewAbsUrl = new URL(renewHref, page.url()).href;
                         console.log(`  📤 跳转 RENEW 链接...`);
