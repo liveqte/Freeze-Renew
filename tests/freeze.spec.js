@@ -165,7 +165,7 @@ test('FreezeHost 自动续期', async ({}, testInfo) => {
     
     // 3. 启动浏览器 (必须用 launchPersistentContext)
     const userDataDir = path.resolve(__dirname, '../.chromium-profile');
-    const context = await chromium.launchPersistentContext(userDataDir, {
+    const  browser = await chromium.launchPersistentContext(userDataDir, {
         headless: true,
         args: fs.existsSync(adguardPath) ? [
           `--disable-extensions-except=${adguardPath}`,
@@ -181,9 +181,9 @@ test('FreezeHost 自动续期', async ({}, testInfo) => {
         // ── 出口 IP 验证（仅测一次） ─────────────────────────
         console.log('🌐 验证出口 IP...');
         try {
-            const ipPage =await context.newPage();
+            const ipPage =await browser.newPage();
             if (fs.existsSync(adguardPath)) {
-             await page.waitForTimeout(3000); 
+             await ipPage.waitForTimeout(3000); 
              console.log('🛡️ AdGuard 插件已加载');
             }
             const res = await ipPage.goto('https://api.ipify.org?format=json', { waitUntil: 'domcontentloaded', timeout: 10000 });
