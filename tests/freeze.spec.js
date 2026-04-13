@@ -181,7 +181,7 @@ test('FreezeHost 自动续期', async ({}, testInfo) => {
         // ── 出口 IP 验证（仅测一次） ─────────────────────────
         console.log('🌐 验证出口 IP...');
         try {
-            const ipPage =await context.newPage);
+            const ipPage =await context.newPage();
             if (fs.existsSync(adguardPath)) {
              await page.waitForTimeout(3000); 
              console.log('🛡️ AdGuard 插件已加载');
