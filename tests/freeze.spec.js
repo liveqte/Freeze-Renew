@@ -124,7 +124,9 @@ async function handleOAuthPage(page) {
 
     console.log(`  ⚠️ handleOAuthPage 结束，URL: ${page.url()}`);
 }
-
+async function getStatus(url) {
+  return await fetch(url).then(r => r.ok).catch(() => false);
+}
 test('FreezeHost 自动续期', async ({}, testInfo) => {
     if (tokens.length === 0) {
         throw new Error('❌ 缺少 DISCORD_TOKEN 环境变量，请配置');
@@ -421,19 +423,23 @@ test('FreezeHost 自动续期', async ({}, testInfo) => {
                     } catch (e) {
                         console.log('  ℹ️ 未发现或无法点击 Start Server (已忽略)');
                     }
-                    //尝试寻找 Wake Up Server 按钮
-                    try {
-                        console.log('  ☀️ 检查 Wake Up Server 按钮...');
-                        const wakeBtn = page.locator('button:has-text("Wake Up Server")');
-                        // 尝试查找按钮 (超时 2000ms)，如果找到则点击
-                        if (await wakeBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-                            console.log('  🖱️ 找到 Wake Up Server 按钮，点击中...');
-                            await wakeBtn.click({ force: true }); // 使用 force 确保点击
-                            await page.waitForTimeout(2000); // 等待唤醒效果
-                            console.log('  ✅ 唤醒点击完成');
+                    const url=process.env.URL;
+                    const isAlive = await getStatus(url);
+                    if (!isAlive) {
+                        //尝试寻找 Wake Up Server 按钮
+                        try {
+                            console.log('  ☀️ 检查 Wake Up Server 按钮...');
+                            const wakeBtn = page.locator('button:has-text("Wake Up Server")');
+                            // 尝试查找按钮 (超时 2000ms)，如果找到则点击
+                            if (await wakeBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+                                console.log('  🖱️ 找到 Wake Up Server 按钮，点击中...');
+                                await wakeBtn.click({ force: true }); // 使用 force 确保点击
+                                await page.waitForTimeout(2000); // 等待唤醒效果
+                                console.log('  ✅ 唤醒点击完成');
+                            }
+                        } catch (e) {
+                            console.log('  ℹ️ 未发现或无法点击 Wake Up Server (已忽略)');
                         }
-                    } catch (e) {
-                        console.log('  ℹ️ 未发现或无法点击 Wake Up Server (已忽略)');
                     }
                     // 1. 尝试抓取具体的服务器名字
                     const serverName = await page.evaluate(() => {
