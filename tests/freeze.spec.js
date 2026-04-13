@@ -1,5 +1,7 @@
 // tests/freeze.spec.js
 const { test, expect, chromium } = require('@playwright/test');
+const path = require('path');
+const fs = require('fs');
 const https = require('https');
 
 const tokensInput = process.env.DISCORD_TOKEN || '';
@@ -153,12 +155,37 @@ test('FreezeHost 自动续期', async ({}, testInfo) => {
         headless: true,
         proxy: proxyConfig,
     });
+    // 1. 定义固定路径 (相对于项目根目录)
+    const adguardPath = path.resolve(__dirname, '../adguard-unpacked');
+    
+    // 2. 安全检查：如果目录不存在，优雅降级或报错
+        if (!fs.existsSync(adguardPath)) {
+        console.warn(`⚠️ 未找到插件目录: ${adguardPath}，将以无插件模式运行`);
+    }
+    
+    // 3. 启动浏览器 (必须用 launchPersistentContext)
+    const userDataDir = path.resolve(__dirname, '../.chromium-profile');
+    const context = await chromium.launchPersistentContext(userDataDir, {
+        headless: true,
+        args: fs.existsSync(adguardPath) ? [
+          `--disable-extensions-except=${adguardPath}`,
+          `--load-extension=${adguardPath}`,
+          '--disable-gpu',
+          '--no-sandbox'
+        ] : [],
+        proxy: proxyConfig,
+        viewport: { width: 1280, height: 720 }
+    });
 
     try {
         // ── 出口 IP 验证（仅测一次） ─────────────────────────
         console.log('🌐 验证出口 IP...');
         try {
-            const ipPage = await browser.newPage();
+            const ipPage =await context.newPage);
+            if (fs.existsSync(adguardPath)) {
+             await page.waitForTimeout(3000); 
+             console.log('🛡️ AdGuard 插件已加载');
+            }
             const res = await ipPage.goto('https://api.ipify.org?format=json', { waitUntil: 'domcontentloaded', timeout: 10000 });
             const body = await res.text();
             const ip = JSON.parse(body).ip || body;
