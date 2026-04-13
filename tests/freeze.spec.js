@@ -607,6 +607,5 @@ test('FreezeHost 自动续期', async ({}, testInfo) => {
         throw e;
 
     } finally {
-        await browser.close();
     }
 });
