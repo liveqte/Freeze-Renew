@@ -161,8 +161,8 @@ test('FreezeHost 自动续期', async ({}, testInfo) => {
     
     // 3. 启动浏览器 (必须用 launchPersistentContext)
     const userDataDir = path.resolve(__dirname, '../.chromium-profile');
-    const browser = await chromium.launchPersistentContext(userDataDir, {
-        headless: true,
+    let context = await chromium.launchPersistentContext(userDataDir, {
+        headless: false,
         args: fs.existsSync(adguardPath) ? [
           `--disable-extensions-except=${adguardPath}`,
           `--load-extension=${adguardPath}`,
@@ -177,7 +177,7 @@ test('FreezeHost 自动续期', async ({}, testInfo) => {
         // ── 出口 IP 验证（仅测一次） ─────────────────────────
         console.log('🌐 验证出口 IP...');
         try {
-            const ipPage =await browser.newPage();
+            const ipPage =await context.newPage();
             if (fs.existsSync(adguardPath)) {
              await ipPage.waitForTimeout(3000); 
              console.log('🛡️ AdGuard 插件已加载');
@@ -214,8 +214,21 @@ test('FreezeHost 自动续期', async ({}, testInfo) => {
             console.log('='.repeat(50));
 
             // 每个账号使用独立的上下文，隔离 Cookie 和 LocalStorage
-            const context = await browser.newContext();
-
+            // const context = await browser.newContext();
+            const userDataDir = path.resolve(__dirname, `../.profiles/${tIndex}`);
+            fs.mkdirSync(userDataDir, { recursive: true });
+        
+            // 🔸 为每个账号启动独立的 Chromium 实例（带插件）
+            context = await chromium.launchPersistentContext(userDataDir, {
+              headless: false,
+              args: [
+                `--disable-extensions-except=${adguardPath}`,
+                `--load-extension=${adguardPath}`,
+                '--disable-gpu',
+                '--no-sandbox'
+              ],
+              viewport: { width: 1280, height: 720 }
+            });
             // ── 全局 Cookie 弹窗自动拦截（MutationObserver 注入）────────
             // 在浏览器内部监控 DOM，一旦 fc-consent-root 弹窗出现立刻点掉
             // 覆盖所有页面（登录前/后、跳转控制台等），无需在各环节手动处理
