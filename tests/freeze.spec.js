@@ -478,7 +478,7 @@ test('FreezeHost 自动续期', async ({}, testInfo) => {
                     try {
                         // 只匹配可见的外链图标，跳过隐藏的 reviewAction 等按钮
                         // Cookie 弹窗已由 addInitScript 全局自动处理
-                        const externalLinkIcon = page.locator('i.fa-external-link-alt:visible').first();
+                        const externalLinkIcon =page.locator('#renew-link-trigger');
                         const parentEl = externalLinkIcon.locator('xpath=..');
                         await parentEl.waitFor({ state: 'visible', timeout: 8000 });
                         // force:true 忽略残留的遮罩层
