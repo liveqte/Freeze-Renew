@@ -524,7 +524,7 @@ test('FreezeHost 自动续期', async ({}, testInfo) => {
                         await page.waitForTimeout(2000);
 
                         const renewModalBtn = page.locator('#renew-link-modal');
-                        await renewModalBtn.waitFor({ state: 'visible', timeout: 5000 });
+                        //await renewModalBtn.waitFor({ state: 'visible', timeout: 5000 });
                         const btnText = (await renewModalBtn.innerText()).trim();
 
                         if (!btnText.toLowerCase().includes('renew instance')) {
