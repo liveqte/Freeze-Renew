@@ -38,8 +38,8 @@ jobs:
       - name: 🛡️ 准备 AdGuard 插件目录
         run: |
           ADGUARD_DIR="./adguard-unpacked"
-          ADGUARD_VERSION="v2.15.4"  # 🔸 建议固定版本
-          ADGUARD_URL="https://github.com/AdguardTeam/AdGuardBrowserExtension/releases/download/${ADGUARD_VERSION}/adguard-chrome-dev.zip"
+          ADGUARD_VERSION="v5.3.1.7"  # 🔸 建议固定版本
+          ADGUARD_URL="https://github.com/AdguardTeam/AdGuardBrowserExtension/releases/download/${ADGUARD_VERSION}/chrome.zip"
           
           # 1. 如果已存在则跳过（利用缓存）
           if [ -f "$ADGUARD_DIR/manifest.json" ]; then
