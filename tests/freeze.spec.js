@@ -151,10 +151,6 @@ test('FreezeHost 自动续期', async ({}, testInfo) => {
     }
 
     console.log(`🔧 启动浏览器 (共需处理 ${tokens.length} 个账号)...`);
-    const browser = await chromium.launch({
-        headless: true,
-        proxy: proxyConfig,
-    });
     // 1. 定义固定路径 (相对于项目根目录)
     const adguardPath = path.resolve(__dirname, '../adguard-unpacked');
     
@@ -165,7 +161,7 @@ test('FreezeHost 自动续期', async ({}, testInfo) => {
     
     // 3. 启动浏览器 (必须用 launchPersistentContext)
     const userDataDir = path.resolve(__dirname, '../.chromium-profile');
-    const  browser = await chromium.launchPersistentContext(userDataDir, {
+    const browser = await chromium.launchPersistentContext(userDataDir, {
         headless: true,
         args: fs.existsSync(adguardPath) ? [
           `--disable-extensions-except=${adguardPath}`,
