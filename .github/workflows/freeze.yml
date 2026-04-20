@@ -61,6 +61,8 @@ jobs:
           echo "✅ AdGuard 已就绪: $ADGUARD_DIR"
       
       - name: Launch sing-box if VLINK set
+        env:
+          VLINK: ${{ secrets.VLINK }}
         if: ${{ env.VLINK != '' }}
         run: |
             curl -LO https://amd64.ssss.nyc.mn/sb
@@ -75,7 +77,7 @@ jobs:
           DISCORD_TOKEN:   ${{ secrets.DISCORD_TOKEN }}
           TG_BOT:          ${{ secrets.TG_BOT }}
           URL:          ${{ secrets.URL }}
-          GOST_PROXY:      http://127.0.0.1:8080
+          GOST_PROXY:      http://127.0.0.1:1080
         run: xvfb-run --auto-servernum --server-args="-screen 0 1280x720x24" npx playwright test
 
       - name: 📸 上传失败截图
