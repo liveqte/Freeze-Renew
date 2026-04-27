@@ -138,7 +138,7 @@ test('FreezeHost 自动续期', async ({}, testInfo) => {
             const http = require('http');
             await new Promise((resolve, reject) => {
                 const req = http.request(
-                    { host: '127.0.0.1', port: 8080, path: '/', method: 'GET', timeout: 3000 },
+                    { host: '127.0.0.1', port: 1080, path: '/', method: 'GET', timeout: 3000 },
                     () => resolve()
                 );
                 req.on('error', reject);
