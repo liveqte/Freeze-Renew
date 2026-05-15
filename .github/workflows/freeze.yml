@@ -3,14 +3,81 @@ on:
   schedule:
     - cron: '0 8 * * *'
   workflow_dispatch:
+
 jobs:
+  # 🔹 Job 1: 预检查（只读缓存）
+  pre-check:
+    name: 🔍 预检查
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    outputs:
+      should_run: ${{ steps.check.outputs.should_run }}
+      deadline_readable: ${{ steps.check.outputs.deadline_readable }}
+    steps:
+      - name: 📥 拉取代码
+        uses: actions/checkout@v4
+
+      # 📦 恢复缓存（只读，不保存）
+      - name: 📁 恢复 deadline 缓存
+        uses: actions/cache/restore@v4
+        with:
+          path: deadline.txt
+          key: freezehost-deadline-v1
+
+      # 🔍 判断是否到期
+      - name: ⏱️ 检查截止时间
+        id: check
+        run: |
+          FILE="deadline.txt"
+          NOW=$(date +%s)
+          SHOULD_RUN="true"
+          DEADLINE_READABLE="无缓存/首次运行"
+
+          if [ -f "$FILE" ]; then
+            TARGET_TS=$(cat "$FILE" | tr -d '[:space:]')
+            if [[ "$TARGET_TS" =~ ^[0-9]+$ ]]; then
+              TARGET_SEC=$((TARGET_TS / 1000))
+              DEADLINE_READABLE=$(date -u -d "@$TARGET_SEC" '+%Y-%m-%d %H:%M:%S UTC' 2>/dev/null || date -u -r "$TARGET_SEC" '+%Y-%m-%d %H:%M:%S UTC')
+              
+              if [ "$NOW" -ge "$TARGET_SEC" ]; then
+                echo "✅ 时间已到，允许续期"
+                SHOULD_RUN="true"
+              else
+                REMAIN=$(( (TARGET_SEC - NOW) / 3600 ))
+                echo "⏳ 尚未到期，跳过续期（剩余约 ${REMAIN} 小时）"
+                SHOULD_RUN="false"
+              fi
+            else
+              echo "⚠️ 时间戳格式错误，执行续期修复"
+              SHOULD_RUN="true"
+            fi
+          else
+            echo "📭 无缓存记录，首次执行续期"
+            SHOULD_RUN="true"
+          fi
+
+          echo "should_run=${SHOULD_RUN}" >> $GITHUB_OUTPUT
+          echo "deadline_readable=${DEADLINE_READABLE}" >> $GITHUB_OUTPUT
+          echo "📅 截止可读时间: ${DEADLINE_READABLE}"
+
+  # 🔹 Job 2: 执行续期（读写缓存）
   renew:
     name: 🔄 执行续期
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    needs: pre-check
+    # 🔸 仅当预检查通过时才执行
+    if: needs.pre-check.outputs.should_run == 'true'
     steps:
       - name: 📥 拉取代码
         uses: actions/checkout@v4
+
+      # 📦 恢复缓存（续期脚本会读取当前 deadline.txt）
+      - name: 📁 恢复 deadline 缓存
+        uses: actions/cache/restore@v4
+        with:
+          path: deadline.txt
+          key: freezehost-deadline-v1
 
       - name: 🟢 安装 Node.js
         uses: actions/setup-node@v4
@@ -38,23 +105,20 @@ jobs:
       - name: 🛡️ 准备 AdGuard 插件目录
         run: |
           ADGUARD_DIR="./adguard-unpacked"
-          ADGUARD_VERSION="v5.3.1.7"  # 🔸 建议固定版本
+          ADGUARD_VERSION="v5.3.1.7"
           ADGUARD_URL="https://github.com/AdguardTeam/AdGuardBrowserExtension/releases/download/${ADGUARD_VERSION}/chrome.zip"
           
-          # 1. 如果已存在则跳过（利用缓存）
           if [ -f "$ADGUARD_DIR/manifest.json" ]; then
             echo "✅ 缓存命中，跳过下载"
             exit 0
           fi
           
-          # 2. 下载 + 解压
           echo "📥 下载 AdGuard ${ADGUARD_VERSION}..."
           curl -fsSL "$ADGUARD_URL" -o adguard.zip
           mkdir -p "$ADGUARD_DIR"
           unzip -q adguard.zip -d "$ADGUARD_DIR"
           rm -f adguard.zip
           
-          # 3. 验证
           if [ ! -f "$ADGUARD_DIR/manifest.json" ]; then
             echo "❌ 解压失败" && exit 1
           fi
@@ -76,9 +140,17 @@ jobs:
         env:
           DISCORD_TOKEN:   ${{ secrets.DISCORD_TOKEN }}
           TG_BOT:          ${{ secrets.TG_BOT }}
-          URL:          ${{ secrets.URL }}
+          URL:             ${{ secrets.URL }}
           GOST_PROXY:      http://127.0.0.1:1080
         run: xvfb-run --auto-servernum --server-args="-screen 0 1280x720x24" npx playwright test
+
+      # 📦 续期成功后，保存新 deadline.txt 到缓存（覆盖旧值）
+      - name: 💾 保存新 deadline 到缓存
+        if: success() && hashFiles('deadline.txt') != ''
+        uses: actions/cache/save@v4
+        with:
+          path: deadline.txt
+          key: freezehost-deadline-v1  # 🔸 相同 key = 覆盖旧缓存
 
       - name: 📸 上传失败截图
         if: failure()
