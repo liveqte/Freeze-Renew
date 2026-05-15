@@ -124,6 +124,36 @@ async function handleOAuthPage(page) {
 
     console.log(`  ⚠️ handleOAuthPage 结束，URL: ${page.url()}`);
 }
+//新增到期时间保存到文件之中（提前两天）
+function formatTimestamp(ts) {
+    const d = new Date(ts);
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  }
+  
+function saveTargetTimestamp(valD, valH, valM, filePath) {
+    // 1. 计算调整后剩余天数（减2天）
+    const adjustedDays = valD + (valH / 24) + (valM / 1440) - 2;
+    const MS_PER_DAY = 86400000;
+    const targetTimestamp = Math.floor(Date.now() + adjustedDays * MS_PER_DAY);
+    
+    try {
+      // 2. 打印可读时间到控制台（方便人工核对）
+      const readableTime = formatTimestamp(targetTimestamp);
+      console.log(`📅 目标时间（可读）: ${readableTime}`);
+      console.log(`⏱️ 目标时间（时间戳）: ${targetTimestamp}`);
+    
+      // 3. 仅将纯数字时间戳写入文件（程序读取判断用）
+      fs.writeFileSync(path.resolve(filePath), String(targetTimestamp), 'utf8');
+      console.log(`✅ 已成功写入文件: ${path.resolve(filePath)}`);
+      
+      return targetTimestamp;
+    } catch (err) {
+      console.error('❌ 写入文件失败:', err.message);
+      throw err;
+    }
+}
+
 async function getStatus(url) {
   return await fetch(url).then(r => r.ok).catch(() => false);
 }
@@ -484,6 +514,7 @@ test('FreezeHost 自动续期', async ({}, testInfo) => {
                             h = Math.floor(tH);
                             m = Math.round((tH - h) * 60);
                             parsed = true;
+                            saveTargetTimestamp(d, h, m, './deadline.txt');
                         }
 
                         if (parsed) {
