@@ -14,9 +14,6 @@ jobs:
       should_run: ${{ steps.check.outputs.should_run }}
       deadline_readable: ${{ steps.check.outputs.deadline_readable }}
     steps:
-      - name: 📥 拉取代码
-        uses: actions/checkout@v4
-
       # 📦 恢复缓存（只读，不保存）
       - name: 📥 读取 deadline 缓存
         uses: actions/cache/restore@v4
