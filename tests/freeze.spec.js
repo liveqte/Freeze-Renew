@@ -67,7 +67,7 @@ function sendTG(result) {
 
 
 async function handleOAuthPage(page) {
-    console.log(`  📄 当前 URL: ${page.url()}`);
+    //console.log(`  📄 当前 URL: ${page.url()}`);
     await page.waitForTimeout(3000);
 
     const selectors = [
@@ -318,7 +318,7 @@ test('FreezeHost 自动续期', async ({}, testInfo) => {
                     }, currentToken);
                     
                     if (autoName) {
-                        console.log(`🤖 成功抓取 Discord 档案: ${autoName}`);
+                        //console.log(`🤖 成功抓取 Discord 档案: ${autoName}`);
                         if (!customName) {
                             accountLabel = `👤 ${autoName}`;
                         }
@@ -354,9 +354,9 @@ test('FreezeHost 自动续期', async ({}, testInfo) => {
                     }
                     
                     await page.waitForURL(/free\.freezehost\.pro/, { timeout: 15000 });
-                    console.log(`✅ 已离开 Discord，当前：${page.url()}`);
+                    //console.log(`✅ 已离开 Discord，当前：${page.url()}`);
                 } catch {
-                    console.log(`✅ 静默授权或已跳转，当前：${page.url()}`);
+                    //console.log(`✅ 静默授权或已跳转，当前：${page.url()}`);
                 }
 
                 // ── 确认到达 Dashboard ────────────────────────────────
@@ -436,7 +436,7 @@ test('FreezeHost 自动续期', async ({}, testInfo) => {
                 for (let i = 0; i < serverUrls.length; i++) {
                     const sUrl = serverUrls[i];
                     console.log(`\n▶️ 开始处理第 ${i + 1}/${serverUrls.length} 个服务器`);
-                    console.log(`  🔗 ${sUrl}`);
+                    //console.log(`  🔗 ${sUrl}`);
                     await page.goto(sUrl, { waitUntil: 'domcontentloaded' });
                     await page.waitForTimeout(10000);
                     //尝试寻找Start Server 按钮
@@ -479,14 +479,14 @@ test('FreezeHost 自动续期', async ({}, testInfo) => {
                         title = title.replace(/ - .+$/, '').replace(/Dashboard/i, '').trim();
                         return title || `Node ${i+1}`;
                     });
-                    console.log(`  📛 服务器名称: ${serverName}`);
+                    //console.log(`  📛 服务器名称: ${serverName}`);
 
                     // 2. 抓取续期状态文本
                     const renewalStatusText = await page.evaluate(() => {
                         const el = document.getElementById('renewal-status-console');
                         return el ? el.innerText.trim() : null;
                     });
-                    console.log(`  📋 续期状态原文：${renewalStatusText}`);
+                    //console.log(`  📋 续期状态原文：${renewalStatusText}`);
 
                     let shouldRenew = true;
                     let timeDisplay = '未知时效';
@@ -624,7 +624,7 @@ test('FreezeHost 自动续期', async ({}, testInfo) => {
         // ── 发送总体通知（仅在最后一次尝试时推送，避免重试重复通知） ──
         console.log('\n📄 最终执行报告:');
         const finalPushText = allSummary.join('\n');
-        console.log(finalPushText);
+        //console.log(finalPushText);
 
         const isLastAttempt = testInfo.retry >= testInfo.project.retries;
         if (!globalHasError || isLastAttempt) {
