@@ -1,0 +1,32 @@
+name: Clear All Workflow Runs
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: '是否仅模拟（不实际删除）？ true/false'
+        required: true
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+  schedule:
+    - cron: '48 3 * * 1' # 每周一 03:48 UTC
+
+jobs:
+  delete-runs:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: read
+
+    steps:
+      - name: Delete workflow runs
+        uses: Mattraks/delete-workflow-runs@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          retain_days: 0
+          keep_minimum_runs: 0
+          dry_run: ${{ github.event.inputs.dry_run || 'false' }}
