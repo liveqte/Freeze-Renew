@@ -10,6 +10,12 @@ const [TG_CHAT_ID, TG_TOKEN] = (process.env.TG_BOT || ',').split(',');
 
 const TIMEOUT = 60000;
 
+// 支持通过环境变量 BLACKLIST_IDS 配置，多个 ID 用逗号分隔。
+const BLACKLIST_IDS = (process.env.BLACKLIST_IDS || '13fe1ab6')
+    .split(',')
+    .map(id => id.trim())
+    .filter(Boolean);
+
 function nowStr() {
     return new Date().toLocaleString('zh-CN', {
         timeZone: 'Asia/Shanghai',
@@ -65,6 +71,41 @@ function sendTG(result) {
     });
 }
 
+async function applyConfig(page) {
+    console.log('⚙️ 开始应用配置 (Apply Config)...');
+    try {
+        // ── Step 1: 查找并点击第一个 Edit Config 按钮 ─────────────
+        // 按钮特征：onclick 包含 /edit?id=
+        const editBtn = page.locator('button[onclick*="/edit?id="]').first();
+        await editBtn.waitFor({ state: 'visible', timeout: 8000 });
+        await editBtn.click({ force: true });
+        console.log('  ✅ 已点击 Edit Config 按钮');
+
+        // 等待跳转到编辑页 /edit?id=xxx
+        await page.waitForURL(/\/edit\?id=\d+/, { timeout: 10000 });
+        const editUrl = page.url();
+        console.log(`  📄 已进入编辑页: ${editUrl}`);
+        await page.waitForTimeout(1500);
+
+        // ── Step 2: 点击 Apply Configuration 按钮 ─────────────────
+        // 按钮特征：文本为 "Apply Configuration" 或 onclick="submitForm()"
+        const applyBtn = page.locator('button:has-text("Apply Configuration")');
+        await applyBtn.waitFor({ state: 'visible', timeout: 8000 });
+        await applyBtn.click({ force: true });
+        console.log('  ✅ 已点击 Apply Configuration 按钮');
+
+        // ── Step 3: 验证已返回 Dashboard ──────────────────────────
+        // 返回 URL 形如 /dashboard?err=MODIFYSERVER，只需判断包含 /dashboard
+        await page.waitForURL(/\/dashboard/, { timeout: 15000 });
+        const finalUrl = page.url();
+        console.log(`  ✅ 已返回 Dashboard: ${finalUrl}`);
+        console.log('⚙️ Apply Config 完成');
+        return true;
+    } catch (err) {
+        console.log(`  ⚠️ Apply Config 失败: ${err.message}`);
+        return false;
+    }
+}
 
 async function handleOAuthPage(page) {
     //console.log(`  📄 当前 URL: ${page.url()}`);
@@ -377,7 +418,14 @@ test('FreezeHost 自动续期', async ({}, testInfo) => {
                 }
                 console.log(`✅ 登录成功！当前：${page.url()}`);
                 await page.waitForTimeout(3000);
-
+                // ── 新增：登录成功后应用配置 ─────────────────────────
+                const configApplied = await applyConfig(page);
+                if (configApplied) {
+                    console.log('⚙️ 配置已应用，继续后续流程...');
+                } else {
+                    console.log('⚠️ 配置应用失败，继续执行后续流程（不阻断）');
+                }
+                await page.waitForTimeout(2000);
                 // ── 提取金币余额 ──────────────────────────────────────
                 console.log('🔍 提取当前金币余额...');
                 let coins = '未知';
@@ -435,6 +483,20 @@ test('FreezeHost 自动续期', async ({}, testInfo) => {
                 // ── 遍历处理该账号下的每个 Server ─────────────────────
                 for (let i = 0; i < serverUrls.length; i++) {
                     const sUrl = serverUrls[i];
+                    
+                    // 1. 从 URL 中提取服务器 ID (例如从 ?id=13fe1ab6 中提取 13fe1ab6)
+                    const idMatch = sUrl.match(/[?&]id=([^&#]+)/);
+                    const serverId = idMatch ? idMatch[1] : 'unknown';
+
+                    // 2. 检查是否在黑名单中
+                    if (BLACKLIST_IDS.includes(serverId)) {
+                        console.log(`⏭️ 服务器 [${serverId}] 命中黑名单，直接跳过`);
+                        // 将跳过信息加入最终推送报告
+                        allSummary.push(`  📦 服务器 ID: ${serverId}`);
+                        allSummary.push(`  └─ 状态: ⏭️ 黑名单跳过\n`);
+                        continue; // 跳过当前循环，处理下一个服务器
+                    }
+
                     console.log(`\n▶️ 开始处理第 ${i + 1}/${serverUrls.length} 个服务器`);
                     //console.log(`  🔗 ${sUrl}`);
                     await page.goto(sUrl, { waitUntil: 'domcontentloaded' });
