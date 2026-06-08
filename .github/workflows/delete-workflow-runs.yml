@@ -12,7 +12,7 @@ on:
           - 'true'
           - 'false'
   schedule:
-    - cron: '48 3 * * 1' # 每周一 03:48 UTC
+    - cron: '0 */3 * * *' 
 
 jobs:
   delete-runs:
