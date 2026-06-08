@@ -84,7 +84,7 @@ async function applyConfig(page) {
         // 等待跳转到编辑页 /edit?id=xxx
         await page.waitForURL(/\/edit\?id=\d+/, { timeout: 10000 });
         const editUrl = page.url();
-        console.log(`  📄 已进入编辑页: ${editUrl}`);
+        //console.log(`  📄 已进入编辑页: ${editUrl}`);
         await page.waitForTimeout(1500);
 
         // ── Step 2: 点击 Apply Configuration 按钮 ─────────────────
@@ -98,7 +98,7 @@ async function applyConfig(page) {
         // 返回 URL 形如 /dashboard?err=MODIFYSERVER，只需判断包含 /dashboard
         await page.waitForURL(/\/dashboard/, { timeout: 15000 });
         const finalUrl = page.url();
-        console.log(`  ✅ 已返回 Dashboard: ${finalUrl}`);
+        //console.log(`  ✅ 已返回 Dashboard: ${finalUrl}`);
         console.log('⚙️ Apply Config 完成');
         return true;
     } catch (err) {
@@ -173,25 +173,43 @@ function formatTimestamp(ts) {
   }
   
 function saveTargetTimestamp(valD, valH, valM, filePath) {
-    // 1. 计算调整后剩余天数（减2天）
+    // 1. 计算当前服务器调整后剩余天数（减2天）对应的时间戳
     const adjustedDays = valD + (valH / 24) + (valM / 1440) - 2;
     const MS_PER_DAY = 86400000;
-    const targetTimestamp = Math.floor(Date.now() + adjustedDays * MS_PER_DAY);
+    const newTimestamp = Math.floor(Date.now() + adjustedDays * MS_PER_DAY);
     
+    const resolvedPath = path.resolve(filePath);
+    let finalTimestamp = newTimestamp; // 默认使用新计算的时间戳
+
     try {
-      // 2. 打印可读时间到控制台（方便人工核对）
-      const readableTime = formatTimestamp(targetTimestamp);
-      console.log(`📅 目标时间（可读）: ${readableTime}`);
-      console.log(`⏱️ 目标时间（时间戳）: ${targetTimestamp}`);
-    
-      // 3. 仅将纯数字时间戳写入文件（程序读取判断用）
-      fs.writeFileSync(path.resolve(filePath), String(targetTimestamp), 'utf8');
-      console.log(`✅ 已成功写入文件: ${path.resolve(filePath)}`);
-      
-      return targetTimestamp;
+        // 2. 尝试读取文件中已保存的旧时间戳
+        if (fs.existsSync(resolvedPath)) {
+            const oldContent = fs.readFileSync(resolvedPath, 'utf8').trim();
+            const oldTimestamp = parseInt(oldContent, 10);
+            
+            // 如果旧内容是一个有效的数字，则进行比较
+            if (!isNaN(oldTimestamp)) {
+                // 核心逻辑：取两者中较小的值（即时间更早、最快过期的那个）
+                finalTimestamp = Math.min(newTimestamp, oldTimestamp);
+                console.log(`  🔄 比较时间戳: 当前服务器=${newTimestamp}, 文件中已有=${oldTimestamp} ➡️ 保留最小值=${finalTimestamp}`);
+            }
+        } else {
+            console.log(`  ℹ️ 文件不存在，将创建并写入新时间戳: ${newTimestamp}`);
+        }
+
+        // 3. 打印最终决定的可读时间到控制台
+        const readableTime = formatTimestamp(finalTimestamp);
+        console.log(`  📅 最终目标时间（可读）: ${readableTime}`);
+        console.log(`  ⏱️ 最终目标时间（时间戳）: ${finalTimestamp}`);
+
+        // 4. 将最终的最小时间戳写入文件
+        fs.writeFileSync(resolvedPath, String(finalTimestamp), 'utf8');
+        console.log(`  ✅ 已成功更新文件: ${resolvedPath}`);
+        
+        return finalTimestamp;
     } catch (err) {
-      console.error('❌ 写入文件失败:', err.message);
-      throw err;
+        console.error('  ❌ 读写文件失败:', err.message);
+        throw err;
     }
 }
 
@@ -259,7 +277,7 @@ test('FreezeHost 自动续期', async ({}, testInfo) => {
             const body = await res.text();
             const ip = JSON.parse(body).ip || body;
             const masked = ip.replace(/(\d+\.\d+\.\d+\.)\d+/, '$1xx');
-            console.log(`✅ 出口 IP 确认：${masked}`);
+            //console.log(`✅ 出口 IP 确认：${masked}`);
             await ipPage.close();
         } catch {
             console.log('⚠️ IP 验证超时，跳过');
@@ -457,7 +475,7 @@ test('FreezeHost 自动续期', async ({}, testInfo) => {
                         // 取出最长的一串数字（如 2,078）
                         coins = matches.reduce((longest, current) => current.length > longest.length ? current : longest, matches[0]);
                     }
-                    console.log(`💰 当前金币: ${coins}`);
+                    //console.log(`💰 当前金币: ${coins}`);
                 } catch (e) {
                     console.log('⚠️ 获取金币失败');
                 }
@@ -483,7 +501,7 @@ test('FreezeHost 自动续期', async ({}, testInfo) => {
                 // ── 遍历处理该账号下的每个 Server ─────────────────────
                 for (let i = 0; i < serverUrls.length; i++) {
                     const sUrl = serverUrls[i];
-                    
+
                     // 1. 从 URL 中提取服务器 ID (例如从 ?id=13fe1ab6 中提取 13fe1ab6)
                     const idMatch = sUrl.match(/[?&]id=([^&#]+)/);
                     const serverId = idMatch ? idMatch[1] : 'unknown';
